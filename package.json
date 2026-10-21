@@ -1,0 +1,13 @@
+{
+  "name": "arinc-429-mensajes-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interfaz local para crear y consultar mensajes de instrumentos.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "mysql2": "^3.24.6"
+  }
+}
