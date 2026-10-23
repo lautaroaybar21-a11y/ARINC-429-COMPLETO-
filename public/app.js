@@ -14,6 +14,14 @@ const outputReadout = document.querySelector('#output-readout');
 let instruments = [];
 let shipments = [];
 let editingShipmentId = null;
+const fallbackInstruments = [
+  { id: 'altimetro', name: 'Altímetro', parameter: 'Altitud', unit: 'ft', min: -1000, max: 60000, labelOctal: '001' },
+  { id: 'velocimetro', name: 'Velocímetro', parameter: 'Velocidad', unit: 'kt', min: 0, max: 600, labelOctal: '002' },
+  { id: 'rumbo', name: 'Indicador de rumbo', parameter: 'Rumbo', unit: '°', min: 0, max: 360, labelOctal: '003' },
+  { id: 'vario', name: 'Variómetro', parameter: 'Velocidad vertical', unit: 'ft/min', min: -6000, max: 6000, labelOctal: '004' },
+  { id: 'temperatura', name: 'Indicador de temperatura', parameter: 'Temperatura', unit: '°C', min: -80, max: 100, labelOctal: '005' },
+  { id: 'combustible', name: 'Indicador de combustible', parameter: 'Combustible', unit: 'kg', min: 0, max: 20000, labelOctal: '006' },
+];
 
 function showFeedback(message, isSuccess = false) {
   feedback.textContent = message;
@@ -85,23 +93,32 @@ function escapeHtml(value) {
 }
 
 async function loadData() {
+  let catalogLoaded = false;
   try {
-    const [instrumentResponse, messageResponse] = await Promise.all([
-      fetch('/api/instruments'),
-      fetch('/api/shipments'),
-    ]);
-    if (!instrumentResponse.ok || !messageResponse.ok) throw new Error('No se pudo consultar el servidor.');
-    instruments = await instrumentResponse.json();
-    const messages = await messageResponse.json();
+    const response = await fetch('/api/instruments');
+    if (!response.ok) throw new Error('No se pudo consultar el catálogo.');
+    const catalog = await response.json();
+    if (!Array.isArray(catalog) || catalog.length === 0) throw new Error('El catálogo está vacío.');
+    instruments = catalog.map((instrument) => {
+      const fallback = fallbackInstruments.find((item) => item.id === instrument.id);
+      return fallback ? { ...fallback, ...instrument } : instrument;
+    });
+    catalogLoaded = true;
+  } catch {
+    instruments = fallbackInstruments;
+  }
 
-    instrumentSelect.innerHTML = '<option value="" disabled selected>Seleccioná un instrumento</option>' +
-      instruments.map((instrument) => `<option value="${escapeHtml(instrument.id)}">${escapeHtml(instrument.name)} · ${escapeHtml(instrument.parameter)}</option>`).join('');
-    renderMessages(messages);
+  instrumentSelect.innerHTML = '<option value="" disabled selected>Seleccioná un instrumento</option>' +
+    instruments.map((instrument) => `<option value="${escapeHtml(instrument.id)}">${escapeHtml(instrument.name)} · ${escapeHtml(instrument.parameter)}</option>`).join('');
+
+  try {
+    await refreshShipments();
     connectionStatus.textContent = 'Conectado';
-  } catch (error) {
-    connectionStatus.textContent = 'Sin conexión';
-    showFeedback('No se pudo conectar con MySQL. Revisá la configuración del servidor.');
-    instrumentSelect.innerHTML = '<option value="" disabled selected>Servidor no disponible</option>';
+    if (!catalogLoaded) showFeedback('Catálogo local disponible; no se pudo consultar el servidor.');
+  } catch {
+    connectionStatus.textContent = 'MySQL sin conexión';
+    renderMessages([]);
+    showFeedback('Podés seleccionar el instrumento e ingresar el valor; MySQL no está disponible para guardar el envío.');
   }
 }
 
