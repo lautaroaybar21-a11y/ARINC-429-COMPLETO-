@@ -9,6 +9,7 @@ const connectionStatus = document.querySelector('#connection-status');
 const messageCount = document.querySelector('#message-count');
 const historyCount = document.querySelector('#history-count');
 const cancelEditButton = document.querySelector('#cancel-edit');
+const outputReadout = document.querySelector('#output-readout');
 
 let instruments = [];
 let shipments = [];
@@ -17,6 +18,15 @@ let editingShipmentId = null;
 function showFeedback(message, isSuccess = false) {
   feedback.textContent = message;
   feedback.classList.toggle('success', isSuccess);
+}
+
+function renderOutput(output) {
+  if (!output) return;
+  document.querySelector('#output-word').textContent = output.wordHex;
+  document.querySelector('#output-bits').textContent = output.wordBits;
+  document.querySelector('#output-label').textContent = output.labelOctal;
+  document.querySelector('#output-voltage').textContent = `${output.simulatedVoltageV.toFixed(3)} V`;
+  outputReadout.hidden = false;
 }
 
 function formatDate(value) {
@@ -60,6 +70,8 @@ async function refreshShipments() {
 function resetEditor() {
   editingShipmentId = null;
   form.reset();
+  valueInput.removeAttribute('min');
+  valueInput.removeAttribute('max');
   unitBadge.textContent = '—';
   document.querySelector('#instrument-hint').textContent = 'Elegí el instrumento que origina el dato.';
   submitButton.querySelector('span').textContent = 'Crear mensaje';
@@ -96,8 +108,15 @@ async function loadData() {
 instrumentSelect.addEventListener('change', () => {
   const instrument = instruments.find((item) => item.id === instrumentSelect.value);
   unitBadge.textContent = instrument ? instrument.unit : '—';
+  if (instrument) {
+    valueInput.min = instrument.min;
+    valueInput.max = instrument.max;
+  } else {
+    valueInput.removeAttribute('min');
+    valueInput.removeAttribute('max');
+  }
   document.querySelector('#instrument-hint').textContent = instrument
-    ? `${instrument.parameter} · unidad: ${instrument.unit}`
+    ? `${instrument.parameter} · ${instrument.min} a ${instrument.max} ${instrument.unit} · etiqueta demostrativa ${instrument.labelOctal} (octal)`
     : 'Elegí el instrumento que origina el dato.';
 });
 
@@ -113,6 +132,7 @@ messageList.addEventListener('click', async (event) => {
   if (!shipment) return;
 
   if (button.dataset.action === 'edit') {
+    outputReadout.hidden = true;
     editingShipmentId = shipment.id;
     instrumentSelect.value = shipment.instrumentId;
     instrumentSelect.dispatchEvent(new Event('change'));
@@ -155,6 +175,7 @@ form.addEventListener('submit', async (event) => {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'No se pudo crear el mensaje.');
 
+    renderOutput(result.arinc429);
     await refreshShipments();
     resetEditor();
     showFeedback(wasEditing ? 'Envío actualizado correctamente.' : 'Envío creado y guardado en MySQL.', true);

@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const mysql = require('mysql2/promise');
+const { encodeInstrumentValue, getInstrumentScale } = require('./arinc429');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const HOST = '127.0.0.1';
@@ -69,14 +70,18 @@ function getInstrumentAndValue(body) {
   if (body.value === '' || !Number.isFinite(value) || Math.abs(value) > 1_000_000_000) {
     return { error: 'Ingresá un valor numérico válido.' };
   }
-  return { instrument, value };
+  try {
+    return { instrument, value, arinc429: encodeInstrumentValue(instrument.id, value) };
+  } catch {
+    return { error: 'El valor está fuera de la escala demostrativa configurada para ese instrumento.' };
+  }
 }
 
 async function getShipment(id) {
   const [rows] = await pool.execute(
     `SELECT id, instrument_id AS instrumentId, instrument, parameter, value, unit,
             delivery_status AS status, created_at AS createdAt, updated_at AS updatedAt
-     FROM shipments WHERE id = ?`,
+    FROM instrument_shipments WHERE id = ?`,
     [id],
   );
   return rows[0];
@@ -110,7 +115,10 @@ const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${HOST}:${PORT}`);
 
   if (request.method === 'GET' && url.pathname === '/api/instruments') {
-    sendJson(response, 200, instruments);
+    sendJson(response, 200, instruments.map((instrument) => ({
+      ...instrument,
+      ...getInstrumentScale(instrument.id),
+    })));
     return;
   }
 
@@ -122,7 +130,7 @@ const server = http.createServer(async (request, response) => {
         const [rows] = await pool.query(
           `SELECT id, instrument_id AS instrumentId, instrument, parameter, value, unit,
                   delivery_status AS status, created_at AS createdAt, updated_at AS updatedAt
-           FROM shipments ORDER BY created_at DESC, id DESC`,
+           FROM instrument_shipments ORDER BY created_at DESC, id DESC`,
         );
         sendJson(response, 200, rows);
         return;
@@ -145,13 +153,13 @@ const server = http.createServer(async (request, response) => {
           sendJson(response, 400, { error: parsed.error });
           return;
         }
-        const { instrument, value } = parsed;
+        const { instrument, value, arinc429 } = parsed;
         const [result] = await pool.execute(
-          `INSERT INTO shipments (instrument_id, instrument, parameter, value, unit, delivery_status)
+          `INSERT INTO instrument_shipments (instrument_id, instrument, parameter, value, unit, delivery_status)
            VALUES (?, ?, ?, ?, ?, 'sent')`,
           [instrument.id, instrument.name, instrument.parameter, value, instrument.unit],
         );
-        sendJson(response, 201, await getShipment(result.insertId));
+        sendJson(response, 201, { ...(await getShipment(result.insertId)), arinc429 });
         return;
       }
 
@@ -162,9 +170,9 @@ const server = http.createServer(async (request, response) => {
           sendJson(response, 400, { error: parsed.error });
           return;
         }
-        const { instrument, value } = parsed;
+        const { instrument, value, arinc429 } = parsed;
         const [result] = await pool.execute(
-          `UPDATE shipments
+          `UPDATE instrument_shipments
            SET instrument_id = ?, instrument = ?, parameter = ?, value = ?, unit = ?
            WHERE id = ?`,
           [instrument.id, instrument.name, instrument.parameter, value, instrument.unit, shipmentId],
@@ -173,12 +181,12 @@ const server = http.createServer(async (request, response) => {
           sendJson(response, 404, { error: 'No se encontró ese envío.' });
           return;
         }
-        sendJson(response, 200, await getShipment(shipmentId));
+        sendJson(response, 200, { ...(await getShipment(shipmentId)), arinc429 });
         return;
       }
 
       if (request.method === 'DELETE' && shipmentId !== null) {
-        const [result] = await pool.execute('DELETE FROM shipments WHERE id = ?', [shipmentId]);
+        const [result] = await pool.execute('DELETE FROM instrument_shipments WHERE id = ?', [shipmentId]);
         if (result.affectedRows === 0) {
           sendJson(response, 404, { error: 'No se encontró ese envío.' });
           return;
@@ -214,7 +222,7 @@ const server = http.createServer(async (request, response) => {
 
 async function start() {
   await pool.execute(`
-    CREATE TABLE IF NOT EXISTS shipments (
+    CREATE TABLE IF NOT EXISTS instrument_shipments (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
       instrument_id VARCHAR(40) NOT NULL,
       instrument VARCHAR(120) NOT NULL,

@@ -78,9 +78,20 @@
 
               <div class="message-preview" aria-live="polite">
                 <span class="preview-icon" aria-hidden="true">↗</span>
-                <span><strong>Destino</strong><br /><span>MySQL local · POST /api/shipments</span></span>
+                <span><strong>Destino</strong><br /><span>MySQL local · codificación de demostración</span></span>
                 <span class="preview-lock" aria-label="Conexión local">●</span>
               </div>
+
+              <section class="output-readout" id="output-readout" aria-live="polite" hidden>
+                <div class="output-heading"><strong>Salida calculada</strong><span>SIMULADA</span></div>
+                <dl>
+                  <div><dt>Palabra ARINC-429</dt><dd id="output-word">—</dd></div>
+                  <div><dt>Bits 32 → 1</dt><dd id="output-bits">—</dd></div>
+                  <div><dt>Etiqueta octal</dt><dd id="output-label">—</dd></div>
+                  <div><dt>Nivel equivalente</dt><dd id="output-voltage">—</dd></div>
+                </dl>
+                <p>Sin transmisión serial ni salida física de tensión.</p>
+              </section>
 
               <div class="form-footer">
                 <span id="form-feedback" class="form-feedback" role="status"></span>
@@ -115,7 +126,7 @@
           <div class="history-heading">
             <div>
               <div class="history-title-row"><h2 id="history-title">Gestión de envíos</h2><span class="history-count" id="history-count">0</span></div>
-              <p>Registros guardados en la tabla shipments</p>
+              <p>Registros guardados en MySQL</p>
             </div>
             <span class="history-live"><i></i> ACTUALIZADO</span>
           </div>

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Interfaz local para crear y consultar mensajes de instrumentos.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^18.0.8",
