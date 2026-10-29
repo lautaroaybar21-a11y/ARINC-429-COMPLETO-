@@ -73,6 +73,7 @@ select { appearance: none; padding: 0 40px 0 12px; cursor: pointer; }
 select:invalid { color: #718198; }
 select option { background: #0d1929; color: #dce6f3; }
 input { padding: 0 67px 0 12px; }
+#instrument-name { margin-bottom: 0; padding: 0 12px; }
 input::placeholder { color: #596b81; }
 select:focus, input:focus { border-color: #438ed2; box-shadow: 0 0 0 3px #2c80c51c; }
 .select-chevron { position: absolute; top: 8px; right: 14px; color: #788ba2; font-size: 20px; pointer-events: none; }

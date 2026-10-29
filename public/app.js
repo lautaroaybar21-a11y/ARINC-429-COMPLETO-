@@ -1,5 +1,6 @@
 const form = document.querySelector('#message-form');
 const instrumentSelect = document.querySelector('#instrument');
+const instrumentNameInput = document.querySelector('#instrument-name');
 const valueInput = document.querySelector('#value');
 const unitBadge = document.querySelector('#unit-badge');
 const feedback = document.querySelector('#form-feedback');
@@ -110,6 +111,7 @@ async function refreshShipments() {
 function resetEditor() {
   editingShipmentId = null;
   form.reset();
+  instrumentNameInput.value = '';
   valueInput.removeAttribute('min');
   valueInput.removeAttribute('max');
   unitBadge.textContent = '—';
@@ -157,6 +159,7 @@ async function loadData() {
 
 instrumentSelect.addEventListener('change', () => {
   const instrument = instruments.find((item) => item.id === instrumentSelect.value);
+  instrumentNameInput.value = instrument ? instrument.name : '';
   unitBadge.textContent = instrument ? instrument.unit : '—';
   if (instrument) {
     valueInput.min = instrument.min;
@@ -186,6 +189,7 @@ messageList.addEventListener('click', async (event) => {
     editingShipmentId = shipment.id;
     instrumentSelect.value = shipment.instrumentId;
     instrumentSelect.dispatchEvent(new Event('change'));
+    instrumentNameInput.value = shipment.instrument;
     valueInput.value = shipment.value;
     submitButton.querySelector('span').textContent = 'Guardar cambios';
     cancelEditButton.hidden = false;
@@ -220,7 +224,11 @@ form.addEventListener('submit', async (event) => {
     const response = await fetch(wasEditing ? `/api/shipments/${editingShipmentId}` : '/api/shipments', {
       method: wasEditing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instrumentId: instrumentSelect.value, value: valueInput.value }),
+      body: JSON.stringify({
+        instrumentId: instrumentSelect.value,
+        instrumentName: instrumentNameInput.value,
+        value: valueInput.value,
+      }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'No se pudo crear el mensaje.');

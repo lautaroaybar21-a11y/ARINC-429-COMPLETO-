@@ -74,11 +74,21 @@ function getInstrumentAndValue(body) {
   if (!instrument) {
     return { error: 'Seleccioná un instrumento válido.' };
   }
+  const instrumentName = typeof body.instrumentName === 'string'
+    ? body.instrumentName.trim()
+    : instrument.name;
+  if (!instrumentName || instrumentName.length > 120) {
+    return { error: 'Ingresá un nombre de instrumento de hasta 120 caracteres.' };
+  }
   if (body.value === '' || !Number.isFinite(value) || Math.abs(value) > 1_000_000_000) {
     return { error: 'Ingresá un valor numérico válido.' };
   }
   try {
-    return { instrument, value, arinc429: encodeInstrumentValue(instrument.id, value) };
+    return {
+      instrument: { ...instrument, name: instrumentName },
+      value,
+      arinc429: encodeInstrumentValue(instrument.id, value),
+    };
   } catch {
     return { error: 'El valor está fuera de la escala demostrativa configurada para ese instrumento.' };
   }
