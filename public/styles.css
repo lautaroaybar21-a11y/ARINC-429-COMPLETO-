@@ -74,6 +74,16 @@ select:invalid { color: #718198; }
 select option { background: #0d1929; color: #dce6f3; }
 input { padding: 0 67px 0 12px; }
 #instrument-name { margin-bottom: 0; padding: 0 12px; }
+.instrument-builder-toggle { margin: 0 0 18px; }
+.instrument-builder-toggle[hidden] { display: none; }
+.instrument-builder { min-width: 0; margin: 0 0 20px; padding: 14px; border: 1px solid #293a4f; border-radius: 7px; background: #0a1523; }
+.instrument-builder[hidden] { display: none; }
+.instrument-builder legend { padding: 0 7px; color: #83bfff; font-size: 11px; font-weight: 600; }
+.instrument-builder .field-label { margin: 10px 0 6px; }
+.instrument-builder input { padding: 0 10px; }
+.instrument-builder-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.instrument-builder-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.instrument-builder-actions button { min-height: 34px; }
 input::placeholder { color: #596b81; }
 select:focus, input:focus { border-color: #438ed2; box-shadow: 0 0 0 3px #2c80c51c; }
 .select-chevron { position: absolute; top: 8px; right: 14px; color: #788ba2; font-size: 20px; pointer-events: none; }

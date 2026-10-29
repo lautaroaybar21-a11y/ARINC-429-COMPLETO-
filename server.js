@@ -13,6 +13,7 @@ const AUTH_USER = process.env.AUTH_USER || '';
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || '';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const LOCAL_DATA_FILE = path.join(__dirname, 'data', 'instrument_shipments.json');
+const LOCAL_INSTRUMENTS_FILE = path.join(__dirname, 'data', 'custom_instruments.json');
 let useLocalFileStorage = false;
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -25,7 +26,7 @@ const pool = mysql.createPool({
   decimalNumbers: true,
 });
 
-const instruments = [
+const builtInInstruments = [
   { id: 'altimetro', name: 'Altímetro', parameter: 'Altitud', unit: 'ft' },
   { id: 'velocimetro', name: 'Velocímetro', parameter: 'Velocidad', unit: 'kt' },
   { id: 'rumbo', name: 'Indicador de rumbo', parameter: 'Rumbo', unit: '°' },
@@ -33,6 +34,65 @@ const instruments = [
   { id: 'temperatura', name: 'Indicador de temperatura', parameter: 'Temperatura', unit: '°C' },
   { id: 'combustible', name: 'Indicador de combustible', parameter: 'Combustible', unit: 'kg' },
 ];
+
+async function readCustomInstruments() {
+  if (useLocalFileStorage) {
+    try {
+      return JSON.parse(await fs.promises.readFile(LOCAL_INSTRUMENTS_FILE, 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+  const [rows] = await pool.query(
+    'SELECT id, name, parameter, unit, min_value AS min, max_value AS max, label FROM custom_instruments ORDER BY created_at, name',
+  );
+  return rows.map((row) => ({ ...row, label: Number(row.label), min: Number(row.min), max: Number(row.max) }));
+}
+
+async function listInstruments() {
+  const custom = await readCustomInstruments();
+  return [
+    ...builtInInstruments.map((instrument) => ({ ...instrument, ...getInstrumentScale(instrument.id), builtIn: true })),
+    ...custom.map((instrument) => ({ ...instrument, labelOctal: instrument.label.toString(8).padStart(3, '0'), builtIn: false })),
+  ];
+}
+
+async function getInstrument(instrumentId) {
+  const builtIn = builtInInstruments.find((item) => item.id === instrumentId);
+  if (builtIn) return { ...builtIn, ...getInstrumentScale(builtIn.id), builtIn: true };
+  return (await readCustomInstruments()).find((item) => item.id === instrumentId);
+}
+
+function parseCustomInstrument(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Completá los datos del instrumento.' };
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const parameter = typeof body.parameter === 'string' ? body.parameter.trim() : '';
+  const unit = typeof body.unit === 'string' ? body.unit.trim() : '';
+  const min = Number(body.min);
+  const max = Number(body.max);
+  if (!name || name.length > 120 || !parameter || parameter.length > 120 || !unit || unit.length > 20) {
+    return { error: 'Ingresá nombre, parámetro y unidad válidos (máx. 120, 120 y 20 caracteres).' };
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max || Math.abs(min) > 1_000_000_000 || Math.abs(max) > 1_000_000_000) {
+    return { error: 'El mínimo y el máximo deben ser números válidos, y el mínimo debe ser menor que el máximo.' };
+  }
+  return { instrument: { id: crypto.randomUUID(), name, parameter, unit, min, max, label: 7 } };
+}
+
+async function saveCustomInstrument(instrument) {
+  if (useLocalFileStorage) {
+    const instruments = await readCustomInstruments();
+    instruments.push(instrument);
+    await fs.promises.mkdir(path.dirname(LOCAL_INSTRUMENTS_FILE), { recursive: true });
+    await fs.promises.writeFile(LOCAL_INSTRUMENTS_FILE, `${JSON.stringify(instruments, null, 2)}\n`);
+    return;
+  }
+  await pool.execute(
+    'INSERT INTO custom_instruments (id, name, parameter, unit, min_value, max_value, label) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [instrument.id, instrument.name, instrument.parameter, instrument.unit, instrument.min, instrument.max, instrument.label],
+  );
+}
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -65,11 +125,11 @@ function readJson(request) {
   });
 }
 
-function getInstrumentAndValue(body) {
+async function getInstrumentAndValue(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'El cuerpo debe ser un objeto JSON con instrumento y valor.' };
   }
-  const instrument = instruments.find((item) => item.id === body.instrumentId);
+  const instrument = await getInstrument(body.instrumentId);
   const value = Number(body.value);
   if (!instrument) {
     return { error: 'Seleccioná un instrumento válido.' };
@@ -87,7 +147,7 @@ function getInstrumentAndValue(body) {
     return {
       instrument: { ...instrument, name: instrumentName },
       value,
-      arinc429: encodeInstrumentValue(instrument.id, value),
+      arinc429: encodeInstrumentValue(instrument.id, value, instrument.builtIn ? null : instrument),
     };
   } catch {
     return { error: 'El valor está fuera de la escala demostrativa configurada para ese instrumento.' };
@@ -168,11 +228,34 @@ const server = http.createServer(async (request, response) => {
 
   const url = new URL(request.url, `http://${HOST}:${PORT}`);
 
-  if (request.method === 'GET' && url.pathname === '/api/instruments') {
-    sendJson(response, 200, instruments.map((instrument) => ({
-      ...instrument,
-      ...getInstrumentScale(instrument.id),
-    })));
+  if (url.pathname === '/api/instruments' && request.method === 'GET') {
+    try {
+      sendJson(response, 200, await listInstruments());
+    } catch (error) {
+      sendJson(response, 500, { error: error.message || 'No se pudo cargar el catálogo de instrumentos.' });
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/instruments' && request.method === 'POST') {
+    try {
+      const parsed = parseCustomInstrument(await readJson(request));
+      if (parsed.error) {
+        sendJson(response, 400, { error: parsed.error });
+        return;
+      }
+      const custom = await readCustomInstruments();
+      parsed.instrument.label = 7 + (custom.length % 249);
+      await saveCustomInstrument(parsed.instrument);
+      sendJson(response, 201, {
+        ...parsed.instrument,
+        labelOctal: parsed.instrument.label.toString(8).padStart(3, '0'),
+        builtIn: false,
+      });
+    } catch (error) {
+      console.error('Error al guardar instrumento:', error.message);
+      sendJson(response, error.status || 500, { error: error.message || 'No se pudo guardar el instrumento.' });
+    }
     return;
   }
 
@@ -208,7 +291,7 @@ const server = http.createServer(async (request, response) => {
 
       if (request.method === 'POST' && shipmentId === null) {
         const body = await readJson(request);
-        const parsed = getInstrumentAndValue(body);
+        const parsed = await getInstrumentAndValue(body);
         if (parsed.error) {
           sendJson(response, 400, { error: parsed.error });
           return;
@@ -244,7 +327,7 @@ const server = http.createServer(async (request, response) => {
 
       if (request.method === 'PUT' && shipmentId !== null) {
         const body = await readJson(request);
-        const parsed = getInstrumentAndValue(body);
+        const parsed = await getInstrumentAndValue(body);
         if (parsed.error) {
           sendJson(response, 400, { error: parsed.error });
           return;
@@ -353,6 +436,20 @@ async function start() {
         PRIMARY KEY (id),
         INDEX idx_shipments_created_at (created_at),
         INDEX idx_shipments_instrument_id (instrument_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS custom_instruments (
+        id VARCHAR(40) NOT NULL,
+        name VARCHAR(120) NOT NULL,
+        parameter VARCHAR(120) NOT NULL,
+        unit VARCHAR(20) NOT NULL,
+        min_value DECIMAL(20, 6) NOT NULL,
+        max_value DECIMAL(20, 6) NOT NULL,
+        label SMALLINT UNSIGNED NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        INDEX idx_custom_instruments_name (name)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
   } catch (error) {

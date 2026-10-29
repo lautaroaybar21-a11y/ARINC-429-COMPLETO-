@@ -24,3 +24,10 @@ test('codifica BNR negativo en complemento a dos y estado normal', () => {
 test('rechaza valores fuera de la escala configurada', () => {
   assert.throws(() => encodeInstrumentValue('rumbo', 361), RangeError);
 });
+
+test('codifica instrumentos personalizados con su etiqueta y escala', () => {
+  const result = encodeInstrumentValue('sensor-presion', 50, { label: 7, min: 0, max: 100 });
+  assert.equal(result.labelOctal, '007');
+  assert.equal(result.simulatedVoltageV, 2.5);
+  assert.equal(result.wordBits.length, 32);
+});

@@ -48,6 +48,8 @@ Usá en `.env` el mismo usuario y clave. Si MySQL se conecta por TCP en vez de s
 
 La interfaz permite editar y eliminar filas desde la tabla. Las rutas antiguas `/api/messages` siguen disponibles como alias para `GET` y `POST`.
 
+Para dar de alta instrumentos propios, elegí **Agregar un instrumento** en el formulario y completá nombre, parámetro, unidad y rango mínimo/máximo. El catálogo no tiene una cantidad fija: en modo local queda guardado en `data/custom_instruments.json`; con MySQL se guarda en `custom_instruments`. Las etiquetas ARINC personalizadas se asignan automáticamente para demostración y pueden repetirse al superar las disponibles; no representan una configuración certificada.
+
 ## Salida ARINC-429 demostrativa
 
 Al crear o editar un envío, la respuesta del `POST` o `PUT /api/shipments` incluye `arinc429`: palabra BNR de 32 bits con datos firmados en complemento a dos y paridad impar, expresada en hexadecimal y binario, etiqueta octal, escala y tensión equivalente simulada de 0 a 5 V. Los datos se guardan en `instrument_shipments`; cualquier tabla `shipments` preexistente se mantiene intacta. Las etiquetas 001 a 006 y los rangos incluidos en `arinc429.js` son asignaciones locales de demostración, no etiquetas ni escalas certificadas. Los valores fuera de esos rangos se rechazan.

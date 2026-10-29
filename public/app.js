@@ -1,6 +1,10 @@
 const form = document.querySelector('#message-form');
 const instrumentSelect = document.querySelector('#instrument');
 const instrumentNameInput = document.querySelector('#instrument-name');
+const instrumentBuilder = document.querySelector('#instrument-builder');
+const openInstrumentBuilderButton = document.querySelector('#open-instrument-builder');
+const saveInstrumentButton = document.querySelector('#save-instrument');
+const cancelInstrumentButton = document.querySelector('#cancel-instrument');
 const valueInput = document.querySelector('#value');
 const unitBadge = document.querySelector('#unit-badge');
 const feedback = document.querySelector('#form-feedback');
@@ -126,6 +130,19 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function renderInstrumentOptions() {
+  instrumentSelect.innerHTML = '<option value="" disabled selected>Seleccioná un instrumento</option>' +
+    instruments.map((instrument) => `<option value="${escapeHtml(instrument.id)}">${escapeHtml(instrument.name)} · ${escapeHtml(instrument.parameter)}</option>`).join('');
+}
+
+function closeInstrumentBuilder() {
+  instrumentBuilder.hidden = true;
+  instrumentBuilder.disabled = true;
+  instrumentBuilder.reset?.();
+  instrumentBuilder.querySelectorAll('input').forEach((input) => { input.value = ''; });
+  openInstrumentBuilderButton.hidden = false;
+}
+
 async function loadData() {
   let catalogLoaded = false;
   try {
@@ -142,8 +159,7 @@ async function loadData() {
     instruments = fallbackInstruments;
   }
 
-  instrumentSelect.innerHTML = '<option value="" disabled selected>Seleccioná un instrumento</option>' +
-    instruments.map((instrument) => `<option value="${escapeHtml(instrument.id)}">${escapeHtml(instrument.name)} · ${escapeHtml(instrument.parameter)}</option>`).join('');
+  renderInstrumentOptions();
 
   try {
     await refreshShipments();
@@ -171,6 +187,49 @@ instrumentSelect.addEventListener('change', () => {
   document.querySelector('#instrument-hint').textContent = instrument
     ? `${instrument.parameter} · ${instrument.min} a ${instrument.max} ${instrument.unit} · etiqueta demostrativa ${instrument.labelOctal} (octal)`
     : 'Elegí el instrumento que origina el dato.';
+});
+
+openInstrumentBuilderButton.addEventListener('click', () => {
+  instrumentBuilder.hidden = false;
+  instrumentBuilder.disabled = false;
+  openInstrumentBuilderButton.hidden = true;
+  instrumentBuilder.querySelector('#new-instrument-name').focus();
+});
+
+cancelInstrumentButton.addEventListener('click', () => {
+  closeInstrumentBuilder();
+});
+
+saveInstrumentButton.addEventListener('click', async () => {
+  const fields = {
+    name: instrumentBuilder.querySelector('#new-instrument-name'),
+    parameter: instrumentBuilder.querySelector('#new-instrument-parameter'),
+    unit: instrumentBuilder.querySelector('#new-instrument-unit'),
+    min: instrumentBuilder.querySelector('#new-instrument-min'),
+    max: instrumentBuilder.querySelector('#new-instrument-max'),
+  };
+  const invalidField = Object.values(fields).find((field) => !field.reportValidity());
+  if (invalidField) return;
+  saveInstrumentButton.disabled = true;
+  try {
+    const response = await fetch('/api/instruments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value]))),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'No se pudo guardar el instrumento.');
+    instruments.push(result);
+    renderInstrumentOptions();
+    instrumentSelect.value = result.id;
+    instrumentSelect.dispatchEvent(new Event('change'));
+    closeInstrumentBuilder();
+    showFeedback(`Instrumento “${result.name}” agregado. Ya podés crear un mensaje.`, true);
+  } catch (error) {
+    showFeedback(error.message || 'No se pudo guardar el instrumento.');
+  } finally {
+    saveInstrumentButton.disabled = false;
+  }
 });
 
 cancelEditButton.addEventListener('click', () => {

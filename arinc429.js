@@ -20,8 +20,8 @@ function getInstrumentScale(instrumentId) {
   return scale ? { ...scale, labelOctal: scale.label.toString(8).padStart(3, '0') } : null;
 }
 
-function encodeInstrumentValue(instrumentId, value) {
-  const scale = instrumentScales[instrumentId];
+function encodeInstrumentValue(instrumentId, value, customScale = null) {
+  const scale = customScale || instrumentScales[instrumentId];
   if (!scale || !Number.isFinite(value) || value < scale.min || value > scale.max) {
     throw new RangeError('El instrumento o el valor está fuera de la escala demostrativa configurada.');
   }

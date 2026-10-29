@@ -69,6 +69,25 @@
               </div>
               <p class="field-hint" id="instrument-hint">Elegí el instrumento que origina el dato.</p>
 
+              <button id="open-instrument-builder" class="secondary-button instrument-builder-toggle" type="button">＋ Agregar un instrumento</button>
+              <fieldset id="instrument-builder" class="instrument-builder" disabled hidden>
+                <legend>Nuevo instrumento</legend>
+                <label class="field-label" for="new-instrument-name">Nombre *</label>
+                <input id="new-instrument-name" type="text" maxlength="120" placeholder="Ej. Sensor de presión" required />
+                <label class="field-label" for="new-instrument-parameter">Parámetro medido *</label>
+                <input id="new-instrument-parameter" type="text" maxlength="120" placeholder="Ej. Presión" required />
+                <div class="instrument-builder-grid">
+                  <div><label class="field-label" for="new-instrument-unit">Unidad *</label><input id="new-instrument-unit" type="text" maxlength="20" placeholder="Ej. kPa" required /></div>
+                  <div><label class="field-label" for="new-instrument-min">Valor mínimo *</label><input id="new-instrument-min" type="number" step="any" placeholder="0" required /></div>
+                  <div><label class="field-label" for="new-instrument-max">Valor máximo *</label><input id="new-instrument-max" type="number" step="any" placeholder="100" required /></div>
+                </div>
+                <p class="field-hint">Podés agregar tantos como necesites. La etiqueta ARINC se asigna automáticamente; es una codificación demostrativa.</p>
+                <div class="instrument-builder-actions">
+                  <button id="save-instrument" type="button">Guardar instrumento</button>
+                  <button id="cancel-instrument" class="secondary-button" type="button">Cancelar</button>
+                </div>
+              </fieldset>
+
               <label class="field-label value-label" for="instrument-name">Nombre del instrumento <span class="required">*</span></label>
               <input id="instrument-name" name="instrumentName" type="text" maxlength="120" placeholder="Ej. Altímetro principal" required />
               <p class="field-hint">Escribí el nombre que querés mostrar en el historial.</p>
