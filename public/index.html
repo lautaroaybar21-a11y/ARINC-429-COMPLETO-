@@ -44,7 +44,7 @@
         <section class="page-heading" id="crear">
           <div class="eyebrow"><span class="eyebrow-line"></span> MENSAJERÍA DE INSTRUMENTOS</div>
           <h1>Crear un mensaje</h1>
-          <p>Seleccioná un instrumento, ingresá su valor y registrá el envío en MySQL.</p>
+          <p id="storage-description">Seleccioná un instrumento, ingresá su valor y registrá el envío.</p>
         </section>
 
         <div class="content-grid">
@@ -78,7 +78,7 @@
 
               <div class="message-preview" aria-live="polite">
                 <span class="preview-icon" aria-hidden="true">↗</span>
-                <span><strong>Destino</strong><br /><span>MySQL local · codificación de demostración</span></span>
+                <span><strong>Destino</strong><br /><span id="storage-destination">Almacenamiento local · codificación de demostración</span></span>
                 <span class="preview-lock" aria-label="Conexión local">●</span>
               </div>
 
@@ -107,7 +107,7 @@
             <section class="info-card">
               <div class="info-icon" aria-hidden="true">i</div>
               <h2>¿Cómo funciona?</h2>
-              <p>Cada envío queda guardado en la tabla MySQL para consultarlo, editarlo o eliminarlo.</p>
+              <p id="storage-help">Cada envío queda guardado para consultarlo, editarlo o eliminarlo.</p>
               <div class="info-divider"></div>
               <div class="info-row"><span class="info-check">✓</span><span>Envío inmediato al servidor local</span></div>
               <div class="info-row"><span class="info-check">✓</span><span>Historial guardado entre sesiones</span></div>
@@ -116,7 +116,7 @@
             <section class="stat-card">
               <div class="stat-top"><span>ENVÍOS REGISTRADOS</span><span class="stat-live"><i></i> ACTIVO</span></div>
               <div class="stat-value" id="message-count">—</div>
-              <div class="stat-caption">en la base MySQL</div>
+              <div class="stat-caption" id="storage-stat-caption">envíos guardados</div>
               <div class="stat-decoration" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
             </section>
           </aside>
@@ -126,20 +126,20 @@
           <div class="history-heading">
             <div>
               <div class="history-title-row"><h2 id="history-title">Gestión de envíos</h2><span class="history-count" id="history-count">0</span></div>
-              <p>Registros guardados en MySQL</p>
+              <p id="history-storage-caption">Registros guardados</p>
             </div>
             <span class="history-live"><i></i> ACTUALIZADO</span>
           </div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>INSTRUMENTO</th><th>PARÁMETRO</th><th>VALOR</th><th>FECHA Y HORA</th><th>ESTADO</th><th>ACCIONES</th></tr></thead>
+              <thead><tr><th>INSTRUMENTO</th><th>PARÁMETRO</th><th>VALOR</th><th>MÍNIMO</th><th>MÁXIMO</th><th>FECHA Y HORA</th><th>ESTADO</th><th>ACCIONES</th></tr></thead>
               <tbody id="message-list">
-                <tr class="empty-row"><td colspan="6">Todavía no hay envíos. Creá el primero desde el formulario.</td></tr>
+                <tr class="empty-row"><td colspan="8">Todavía no hay envíos. Creá el primero desde el formulario.</td></tr>
               </tbody>
             </table>
           </div>
         </section>
-        <footer class="page-footer"><span>AeroLink · Entorno local de prueba</span><span>Los envíos se guardan en MySQL</span></footer>
+        <footer class="page-footer"><span>AeroLink · Entorno local de prueba</span><span id="footer-storage-caption">Los envíos quedan guardados en este equipo</span></footer>
       </main>
     </div>
   </body>

@@ -14,6 +14,7 @@ const outputReadout = document.querySelector('#output-readout');
 let instruments = [];
 let shipments = [];
 let editingShipmentId = null;
+let storageMode = 'mysql';
 const fallbackInstruments = [
   { id: 'altimetro', name: 'Altímetro', parameter: 'Altitud', unit: 'ft', min: -1000, max: 60000, labelOctal: '001' },
   { id: 'velocimetro', name: 'Velocímetro', parameter: 'Velocidad', unit: 'kt', min: 0, max: 600, labelOctal: '002' },
@@ -50,28 +51,59 @@ function renderMessages(records) {
   messageCount.textContent = records.length.toString().padStart(2, '0');
 
   if (records.length === 0) {
-    messageList.innerHTML = '<tr class="empty-row"><td colspan="6">Todavía no hay envíos. Creá el primero desde el formulario.</td></tr>';
+    messageList.innerHTML = '<tr class="empty-row"><td colspan="8">Todavía no hay envíos. Creá el primero desde el formulario.</td></tr>';
     return;
   }
 
-  messageList.innerHTML = records.slice(0, 20).map((message) => `
-    <tr>
-      <td class="instrument-cell">${escapeHtml(message.instrument)}</td>
-      <td>${escapeHtml(message.parameter)}</td>
-      <td class="value-cell">${Number(message.value).toLocaleString('es-AR')} ${escapeHtml(message.unit)}</td>
-      <td>${formatDate(message.createdAt)}</td>
-      <td><span class="status-pill">${escapeHtml(message.status === 'sent' ? 'Enviado' : message.status)}</span></td>
-      <td class="action-cell">
-        <button class="row-button" type="button" data-action="edit" data-id="${message.id}">Editar</button>
-        <button class="row-button delete-button" type="button" data-action="delete" data-id="${message.id}">Eliminar</button>
-      </td>
-    </tr>
-  `).join('');
+  messageList.innerHTML = records.slice(0, 20).map((message) => {
+    const instrument = instruments.find((item) => item.id === message.instrumentId);
+    const minimum = instrument ? `${Number(instrument.min).toLocaleString('es-AR')} ${escapeHtml(message.unit)}` : '—';
+    const maximum = instrument ? `${Number(instrument.max).toLocaleString('es-AR')} ${escapeHtml(message.unit)}` : '—';
+    return `
+      <tr>
+        <td class="instrument-cell">${escapeHtml(message.instrument)}</td>
+        <td>${escapeHtml(message.parameter)}</td>
+        <td class="value-cell">${Number(message.value).toLocaleString('es-AR')} ${escapeHtml(message.unit)}</td>
+        <td>${minimum}</td>
+        <td>${maximum}</td>
+        <td>${formatDate(message.createdAt)}</td>
+        <td><span class="status-pill">${escapeHtml(message.status === 'sent' ? 'Enviado' : message.status)}</span></td>
+        <td class="action-cell">
+          <button class="row-button" type="button" data-action="edit" data-id="${message.id}">Editar</button>
+          <button class="row-button delete-button" type="button" data-action="delete" data-id="${message.id}">Eliminar</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updateStorageLabels() {
+  const isLocal = storageMode === 'local';
+  const destination = isLocal ? 'Archivo local' : 'Base MySQL';
+  const storageDescription = document.querySelector('#storage-description');
+  const storageDestination = document.querySelector('#storage-destination');
+  const storageHelp = document.querySelector('#storage-help');
+  const storageStatCaption = document.querySelector('#storage-stat-caption');
+  const historyStorageCaption = document.querySelector('#history-storage-caption');
+  const footerStorageCaption = document.querySelector('#footer-storage-caption');
+
+  storageDescription.textContent = isLocal
+    ? 'Registrá y administrá mensajes de instrumentos; se guardan en este equipo.'
+    : 'Seleccioná un instrumento, ingresá su valor y registrá el envío en MySQL.';
+  storageDestination.textContent = `${destination} · codificación de demostración`;
+  storageHelp.textContent = `Cada envío queda guardado en ${isLocal ? 'este equipo' : 'la base MySQL'} para consultarlo, editarlo o eliminarlo.`;
+  storageStatCaption.textContent = isLocal ? 'envíos guardados en este equipo' : 'en la base MySQL';
+  historyStorageCaption.textContent = `Registros guardados en ${isLocal ? 'este equipo' : 'MySQL'}`;
+  footerStorageCaption.textContent = isLocal
+    ? 'Los envíos quedan guardados en este equipo'
+    : 'Los envíos se guardan en MySQL';
 }
 
 async function refreshShipments() {
   const response = await fetch('/api/shipments');
   if (!response.ok) throw new Error('No se pudo actualizar la lista de envíos.');
+  storageMode = response.headers.get('X-Storage-Mode') || 'mysql';
+  updateStorageLabels();
   renderMessages(await response.json());
 }
 
@@ -113,7 +145,8 @@ async function loadData() {
 
   try {
     await refreshShipments();
-    connectionStatus.textContent = 'Conectado';
+    connectionStatus.textContent = storageMode === 'local' ? 'Archivo local' : 'Conectado a MySQL';
+    if (storageMode === 'local') showFeedback('Los registros se guardan en este equipo y aparecerán en la tabla.', true);
     if (!catalogLoaded) showFeedback('Catálogo local disponible; no se pudo consultar el servidor.');
   } catch {
     connectionStatus.textContent = 'MySQL sin conexión';
@@ -195,7 +228,10 @@ form.addEventListener('submit', async (event) => {
     renderOutput(result.arinc429);
     await refreshShipments();
     resetEditor();
-    showFeedback(wasEditing ? 'Envío actualizado correctamente.' : 'Envío creado y guardado en MySQL.', true);
+    const destination = storageMode === 'local' ? 'el almacenamiento local' : 'MySQL';
+    showFeedback(wasEditing
+      ? `Envío actualizado correctamente en ${destination}.`
+      : `Envío creado y guardado en ${destination}.`, true);
   } catch (error) {
     showFeedback(error.message || 'Error de conexión. Intentá de nuevo.');
   } finally {

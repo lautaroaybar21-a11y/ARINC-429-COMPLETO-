@@ -1,6 +1,6 @@
 # AeroLink · CRUD de envíos con MySQL
 
-Aplicación local para registrar envíos de instrumentos y administrarlos con operaciones CRUD. Cada fila se guarda en la tabla `arinc429.instrument_shipments`.
+Aplicación local para registrar envíos de instrumentos y administrarlos con operaciones CRUD. Con MySQL, cada fila se guarda en la tabla `arinc429.instrument_shipments`. Si MySQL no está configurado o no se puede conectar, la aplicación inicia en modo local y guarda los registros en `data/instrument_shipments.json`.
 
 ## Requisitos
 
@@ -18,7 +18,15 @@ npm install
 npm start
 ```
 
-Abrir http://127.0.0.1:3000. El servidor también crea la tabla al iniciar si el usuario configurado tiene permiso `CREATE`.
+En esta computadora, abrí http://127.0.0.1:3000. Para permitir que otra computadora en la misma red Wi-Fi o LAN también abra la página, iniciá el servidor con `npm start` desde la carpeta del proyecto y compartile este enlace: http://10.15.8.111:3000. Ambas computadoras deben estar conectadas a la misma red y esta computadora debe permanecer encendida con la terminal abierta. Si la IP cambia, reemplazá `10.15.8.111` por la dirección que muestre `hostname -I` en Linux (o `ipconfig` en Windows).
+
+El servidor escucha en todas las interfaces de red (`HOST=0.0.0.0`). Si la otra computadora no puede abrir el enlace, permití conexiones entrantes al puerto TCP 3000 en el firewall y comprobá que la red no tenga aislamiento entre dispositivos. El servidor también crea la tabla al iniciar si el usuario configurado tiene permiso `CREATE`. Sin MySQL, el modo local permite usar el CRUD y persiste los datos en un archivo JSON del repositorio.
+
+## Acceder desde otra computadora en la misma red
+
+El servidor escucha en todas las interfaces de red por defecto (`HOST=0.0.0.0`). Iniciá la aplicación en esta computadora y averiguá su dirección IPv4 local con `hostname -I` (Linux) o `ipconfig` (Windows). Desde la otra computadora, conectada a la misma red Wi-Fi o LAN, abrí `http://DIRECCION-IP:3000`, reemplazando `DIRECCION-IP` por esa dirección (por ejemplo, `http://192.168.1.25:3000`).
+
+Si no conecta, permití conexiones TCP entrantes al puerto 3000 en el firewall de esta computadora y verificá que ambas estén en la misma red y que el router no tenga aislamiento de clientes. No configures reenvío de puertos ni expongas este servidor a Internet: no incluye autenticación y está pensado para una red local confiable. Podés cambiar la interfaz de escucha con la variable `HOST` en `.env`.
 
 Si todavía no existe un usuario de aplicación, el administrador puede concederle acceso con:
 
